@@ -9,11 +9,10 @@ class ImageResource {
 }
 
 class Sprite {
-  constructor(resource) {
+  constructor(resource, size, positions) {
     this.resource = resource;
-    this.size = [32, 32];
-    // this.positions = [[0, 0], [32, 0], [64, 0], [96, 0], [128, 0], [160, 0], [192, 0], [225, 0]];
-    this.positions = [[0, 32], [32, 32], [64, 32], [96, 32], [128, 32], [160, 32]];
+    this.size = size;
+    this.positions = positions;
 
     this.worldPos = [0, 0];
 
@@ -26,7 +25,7 @@ class Sprite {
     return this.positions.length;
   }
 
-  update(deltaTime) {
+  calcNextFrame(deltaTime) {
     if (this.timer > this.interval) {
       this.timer = 0;
       this.frame++;
@@ -34,8 +33,13 @@ class Sprite {
     } else {
         this.timer += deltaTime;
     }
-    this.worldPos[1] += 0.3;
-    // this.worldPos[0] += 0.3;
+  }
+
+  updateImpl() {}
+
+  update(deltaTime) {
+    this.calcNextFrame(deltaTime);
+    this.updateImpl();
   }
 
   draw(ctx) {
@@ -52,13 +56,34 @@ class Sprite {
   }
 }
 
+class Idle extends Sprite {
+  updateImpl() {
+  }
+}
+
+class Walk extends Sprite {
+  updateImpl() {
+    this.worldPos[1] += 0.3;
+    // this.worldPos[0] += 0.3;
+  }
+}
+
 class Scene {
   constructor() {
     // TODO:
     const imageResource1 = new ImageResource("./64171.png");
-    const imageResource2 = new ImageResource("./64172.png");
-    const sprite1 = new Sprite(imageResource1);
-    const sprite2 = new Sprite(imageResource2);
+    // const imageResource2 = new ImageResource("./64172.png");
+
+    const sprite1 = new Idle(
+      imageResource1,
+      [32, 32],
+      [[0, 0]]
+    );
+    const sprite2 = new Walk(
+      imageResource1,
+      [32, 32],
+      [[0, 32], [32, 32], [64, 32], [96, 32], [128, 32], [160, 32]]
+    );
     sprite2.worldPos[0] = 24;
     sprite2.interval = 33;
     this.sprites = [sprite1, sprite2];
