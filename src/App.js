@@ -1,92 +1,48 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ImageResource, Actor, Stand, Walk, SpriteState } from "./Sprite"
 import "./App.css";
 
-class ImageResource {
-  constructor(filename) {
-    this.image = new Image();
-    this.image.src = filename;
-  }
-}
+class KeyboardInputManager {
+  constructor() {
+    this.events = [];
 
-class Sprite {
-  constructor(resource, size, positions) {
-    this.resource = resource;
-    this.size = size;
-    this.positions = positions;
-
-    this.worldPos = [0, 0];
-
-    this.interval = 66;
-    this.frame = 0
-    this.timer = 0;
-  }
-
-  maxFrame() {
-    return this.positions.length;
+    window.addEventListener(
+      "keydown",
+      (e) => {
+        const events = this.events.filter(i => (i.type === e.type) && (i.code === e.code));
+        if (events.length === 0) this.events.push(e);
+      }
+    );
+    window.addEventListener(
+      "keyup",
+      (e) => {
+        this.events = this.events.filter(i => i.code !== e.code);
+      }
+    );
   }
 
-  calcNextFrame(deltaTime) {
-    if (this.timer > this.interval) {
-      this.timer = 0;
-      this.frame++;
-      if (this.frame >= this.maxFrame()) this.frame = 0;
-    } else {
-        this.timer += deltaTime;
-    }
+  getEventCodes() {
+    return this.events.map(i => i.code);
   }
 
-  updateImpl() {}
-
-  update(deltaTime) {
-    this.calcNextFrame(deltaTime);
-    this.updateImpl();
-  }
-
-  draw(ctx) {
-    ctx.drawImage(
-      this.resource.image,
-      this.positions[this.frame][0],
-      this.positions[this.frame][1],
-      this.size[0],
-      this.size[1],
-      this.worldPos[0],
-      this.worldPos[1],
-      this.size[0],
-      this.size[1])
-  }
-}
-
-class Idle extends Sprite {
-  updateImpl() {
-  }
-}
-
-class Walk extends Sprite {
-  updateImpl() {
-    this.worldPos[1] += 0.3;
-    // this.worldPos[0] += 0.3;
+  flush() {
+    this.events = [];
   }
 }
 
 class Scene {
-  constructor() {
-    // TODO:
-    const imageResource1 = new ImageResource("./64171.png");
-    // const imageResource2 = new ImageResource("./64172.png");
+  constructor(keyboardInputManager) {
+    this.keyboardInputManager = keyboardInputManager;
 
-    const sprite1 = new Idle(
-      imageResource1,
-      [32, 32],
-      [[0, 0]]
-    );
-    const sprite2 = new Walk(
-      imageResource1,
-      [32, 32],
-      [[0, 32], [32, 32], [64, 32], [96, 32], [128, 32], [160, 32]]
-    );
-    sprite2.worldPos[0] = 24;
-    sprite2.interval = 33;
-    this.sprites = [sprite1, sprite2];
+    // TODO:
+    const imageResource = new ImageResource("./finn.png");
+
+    const actor = new Actor();
+    actor.add(new Stand(imageResource, [32, 32], [32 * 6, 32], 1));
+    actor.add(new Walk(imageResource, [32, 32], [0, 32], 6));
+    actor.state = SpriteState.WALK;
+
+    this.sprites = [actor];
 
     this.lastTime = 0;
   }
@@ -95,26 +51,26 @@ class Scene {
     const deltaTime = this.lastTime < 0.001 ? 0 : now - this.lastTime;
     this.lastTime = now;
 
-    this.sprites.forEach((obj) => obj.update(deltaTime));
+    const eventCodes = this.keyboardInputManager.getEventCodes();
+
+    this.sprites.forEach((obj) => obj.update(deltaTime, eventCodes));
     this.sprites.forEach((obj) => obj.draw(ctx));
   }
 }
 
-const scene = new Scene();
-
-
 export default function App() {
   const canvasRef = useRef(null);
+  const sceneRef = useRef(null);
   const [canvasCtx, setCanvasCtx] = useState(null);
 
   const animatePlayerLoop = useCallback(
     (now) => {
-      if (!canvasCtx) return;
+      if (!canvasCtx || !sceneRef.current) return;
 
       // TODO:
       // canvasCtx.clearRect(0, 0, canvasCtx.width, canvasCtx.height);
       canvasCtx.clearRect(0, 0, 640, 480);
-      scene.draw(canvasCtx, now);
+      sceneRef.current.draw(canvasCtx, now);
       window.requestAnimationFrame(animatePlayerLoop);
     },
     [canvasCtx]
@@ -123,6 +79,10 @@ export default function App() {
   useEffect(() => {
     setCanvasCtx(canvasRef.current.getContext("2d"));
     window.requestAnimationFrame(animatePlayerLoop);
+    
+    if (!sceneRef.current) {
+      sceneRef.current = new Scene(new KeyboardInputManager());
+    }
   }, [canvasRef, animatePlayerLoop]);
 
   return (
